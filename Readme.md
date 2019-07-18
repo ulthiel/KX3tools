@@ -4,7 +4,7 @@ Python scripts to interact with an [Elecraft](https://elecraft.com) KX3.
 
 ## swr.py
 
-This script uses the KX3 to determine the SWR on a given set of frequencies with and without the internal KXA3 tuner. Here's an example output for an 58ft wire antenna:
+This script uses the KX3 to determine the SWR of an antenna on a given set of frequencies with and without the internal KXA3 tuner. Additionally, it determines the L and C values of the tuner after matching. Here's an example output for an 58ft wire antenna with 13ft counterpoise:
 
 | Freq(KHz) | SWR       | SWRt      | L         | C         | Side      |
 |-----------|-----------|-----------|-----------|-----------|-----------|
