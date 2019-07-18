@@ -172,10 +172,11 @@ def DecodeATU( msg ):
 #main program
 
 #set tune power
-powerstr = int(power).zfill(3)
-print powerstr
-sys.exit(0)
-KX3Cmd(ser, "PC"+powerstr+";") #get swr
+oldpowerstr = KX3Cmd(ser, "PC;")
+oldpowerstr = oldpowerstr.replace("PC", "")
+oldpowerstr = oldpowerstr.replace(";", "")
+powerstr = str(int(power)).zfill(3)
+KX3Cmd(ser, "PC"+powerstr+";")
 
 #determine swrs
 swruntuned = []
@@ -236,3 +237,6 @@ for f in freq:
 
 if len(sys.argv) > 1:
 	outfile.close()
+
+#reset power
+KX3Cmd(ser, "PC"+oldpowerstr+";")
