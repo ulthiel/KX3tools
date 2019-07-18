@@ -7,7 +7,7 @@
 # You will need the python packages pyserial, bitstring, and bitarray.
 # You can install them via
 #
-# sudo pip install pyserial, bitstring, bitarray
+# sudo pip install pyserial bitstring bitarray
 #
 # By Ulrich Thiel (DK1UT), 2019
 # https://ulthiel.com/dk1ut
@@ -24,7 +24,7 @@ port=""
 freq = [ 1860, 3690, 7090, 14285, 21285 ]
 
 #tune power
-power = 10
+power = 3 #3W is normal tune power for KXAT3
 
 ##############################################################################
 #imports
@@ -46,48 +46,49 @@ if len(sys.argv) > 1:
 #list serial ports
 #from http://stackoverflow.com/questions/12090503/listing-available-com-ports-with-python
 def serial_ports():
-    """ Lists serial port names
+  """ Lists serial port names
 
-        :raises EnvironmentError:
-            On unsupported or unknown platforms
-        :returns:
-            A list of the serial ports available on the system
-    """
-    if sys.platform.startswith('win'):
-        ports = ['COM%s' % (i + 1) for i in range(256)]
-    elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
-        # this excludes your current terminal "/dev/tty"
-        ports = glob.glob('/dev/ttyUSB*')
-    elif sys.platform.startswith('darwin'):
-        ports = glob.glob('/dev/tty.usbserial*')
-    else:
-        raise EnvironmentError('Unsupported platform')
+      :raises EnvironmentError:
+          On unsupported or unknown platforms
+      :returns:
+          A list of the serial ports available on the system
+  """
+  if sys.platform.startswith('win'):
+    ports = ['COM%s' % (i + 1) for i in range(256)]
+  elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+    # this excludes your current terminal "/dev/tty"
+    ports = glob.glob('/dev/ttyUSB*')
+  elif sys.platform.startswith('darwin'):
+    ports = glob.glob('/dev/tty.usbserial*')
+  else:
+    raise EnvironmentError('Unsupported platform')
 
-    result = []
-    for port in ports:
-        try:
-            s = serial.Serial(port)
-            s.close()
-            result.append(port)
-        except (OSError, serial.SerialException):
-            pass
-    return result
+  result = []
+  for port in ports:
+    try:
+      s = serial.Serial(port)
+      s.close()
+      result.append(port)
+    except (OSError, serial.SerialException):
+      pass
+
+  return result
 
 ##############################################################################
 #send command to kx3
 def KX3Cmd( ss, sendstr ):
-    cmd=sendstr+';'
-    ss.write(cmd.encode())
-    ret = "XXXXXXXXXXXXXXXX"
-    count = 0
-    while count < 2:
-    	try:
-    		 ret = ss.read(64)
-    	except:
-    		count = count + 1
-    	break
+  cmd=sendstr+';'
+  ss.write(cmd.encode())
+  ret = "XXXXXXXXXXXXXXXX"
+  count = 0
+  while count < 2:
+  	try:
+  		 ret = ss.read(64)
+  	except:
+  		count = count + 1
+  	break
 
-    return ret
+  return ret
 
 ##############################################################################
 #set up serial port
@@ -98,7 +99,7 @@ else:
 	print "No port found."
 	sys.exit(0)
 
-print "Using port " + port
+print "Port " + port + " @ " + str(baudrate) +  "bps"
 
 ser = serial.Serial(
       port = port,
@@ -131,11 +132,8 @@ def DecodeSWRFromDisplay( msg ):
 #Decode ATU settings
 def DecodeATU( msg ):
 
-	val = ""
-	for c in msg:
-		if c == ";" or c == "A" or c == "K":
-			continue
-		val = val + c
+	msg = msg.replace(";", "")
+	val = msg[2:8]
 
 	#L and C network of KXAT3
 	lNet = [8.0, 4.0, 2.0, 1.0, 0.5, 0.25, 0.12, 0.06]
@@ -176,15 +174,21 @@ oldpowerstr = KX3Cmd(ser, "PC;")
 oldpowerstr = oldpowerstr.replace("PC", "")
 oldpowerstr = oldpowerstr.replace(";", "")
 powerstr = str(int(power)).zfill(3)
+time.sleep(0.25)
 KX3Cmd(ser, "PC"+powerstr+";")
-
+time.sleep(0.25)
+curpowerstr = KX3Cmd(ser, "PC;")
+curpowerstr = curpowerstr.replace("PC", "")
+curpowerstr = curpowerstr.replace(";", "")
+print "Power set to "+curpowerstr.strip("0")+"W"
+print ""
 #determine swrs
 swruntuned = []
 swrtuned = []
 atu = []
 i = 0
-print "| Freq(KHz) | SWR | SWRt | L | C | Side |"
-print "|-----------|-----|------|---|---|------|"
+print "| Freq(KHz) | SWR       | SWRt      | L         | C         | Side      |"
+print "|-----------|-----------|-----------|-----------|-----------|-----------|"
 if len(sys.argv) > 1:
 	outfile.write("\"Freq(MHz)\",\"SWR\",\"SWRt\",\"L\",\"C\",\"Side\"\n")
 
@@ -225,7 +229,7 @@ for f in freq:
 	atucode = KX3Cmd(ser, "AK;") #ATU config
 	atu.append(DecodeATU(atucode))
 
-	print str(freq[i])+" | " + str(swruntuned[i]) + " | "+str(swrtuned[i]) + " | "+str(atu[i][0])+ " | "+str(atu[i][1])+  " | "+str(atu[i][2]) + " | "
+	print "| " + str(freq[i]).ljust(9) +" | " + str(swruntuned[i]).ljust(9) + " | "+str(swrtuned[i]).ljust(9) + " | "+str(atu[i][0]).ljust(9) + " | "+str(atu[i][1]).ljust(9) +  " | "+str(atu[i][2]).ljust(9) + " | "
 
 	if len(sys.argv) > 1:
 		outfile.write(str(freq[i]/1000.0)+"," + str(swruntuned[i]) + ", "+str(swrtuned[i]) + ","+str(atu[i][0])+ ","+str(atu[i][1])+ ","+str(atu[i][2])+"\n")
